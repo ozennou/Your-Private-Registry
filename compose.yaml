@@ -1,0 +1,71 @@
+networks:
+  registry-net:
+    driver: bridge
+
+volumes:
+  registry_mount:
+    name: registry_mount
+    driver: local
+  certs:
+    name: certs
+    driver: local
+  auth:
+    name: auth
+    driver: local
+
+services:
+  setup:
+    image: "alpine/openssl:3.3.1"
+    container_name: setup
+    volumes: 
+      - "certs:/certs"
+      - "auth:/auth"
+    environment:
+      - REGISTRY_USER=$REGISTRY_USER
+      - REGISTRY_PASSWD=$REGISTRY_PASSWD
+    entrypoint: |
+      sh -c '
+      if [ ! -f /certs/registry.key ]; then
+        echo "Generating the certificates ..."
+        openssl req -x509 -newkey rsa:4096 -nodes -keyout /certs/registry.key -out /certs/registry.crt -days 365 -subj "/C=MA/ST=Béni Mellal-Khénifra/L=Khouribga/O=leetinitiative/CO=registry"; 1>/dev/null
+      fi;
+      # chmod 666 /certs/*
+      apk add apache2-utils
+      htpasswd -bBc /auth/registry.passwd $REGISTRY_USER $REGISTRY_PASSWD
+      echo "All done!"
+      '
+
+  registry:
+    image: registry:2
+    container_name: registry
+    ports:
+      - 5000:5000
+      - 4318:4318
+    volumes:
+      - registry_mount:/data
+      - auth:/auth
+    environment:
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: Registry-Realm
+      REGISTRY_AUTH_HTPASSWD_PATH: /auth/registry.passwd
+      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /data
+    restart: unless-stopped
+    networks:
+      - registry-net
+    depends_on:
+      - setup
+
+  nginx:
+    image: nginx:stable-alpine3.19-slim
+    container_name: nginx
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./srcs/nginx/conf.d/:/etc/nginx/conf.d/
+      - certs:/etc/nginx/certs/
+    restart: unless-stopped
+    networks:
+      - registry-net
+    depends_on:
+      - setup
