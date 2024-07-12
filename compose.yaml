@@ -62,7 +62,7 @@ services:
       - 80:80
       - 443:443
     volumes:
-      - ./srcs/nginx/conf.d/:/etc/nginx/conf.d/
+      - ./srcs/conf.d/:/etc/nginx/conf.d/
       - certs:/etc/nginx/certs/
     restart: unless-stopped
     networks:
