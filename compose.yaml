@@ -25,6 +25,10 @@ services:
       - REGISTRY_PASSWD=$REGISTRY_PASSWD
     entrypoint: |
       sh -c '
+      if [ -z "$REGISTRY_USER" ] || [ -z "$REGISTRY_PASSWD" ]; then
+          echo "Set REGISTRY_USER and REGISTRY_PASSWD in .env file"
+          exit 1
+      fi
       if [ ! -f /certs/registry.key ]; then
         echo "Generating the certificates ..."
         openssl req -x509 -newkey rsa:4096 -nodes -keyout /certs/registry.key -out /certs/registry.crt -days 365 -subj "/C=MA/ST=Béni Mellal-Khénifra/L=Khouribga/O=leetinitiative/CO=registry"; 1>/dev/null
@@ -34,7 +38,7 @@ services:
       htpasswd -bBc /auth/registry.passwd $REGISTRY_USER $REGISTRY_PASSWD
       echo "All done!"
       '
-
+    
   registry:
     image: registry:2
     container_name: registry
